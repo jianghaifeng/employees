@@ -11,11 +11,11 @@ class Lark:
         self.client = lark.Client.builder() \
             .app_id(APP_ID) \
             .app_secret(APP_SECRET) \
-            .log_level(lark.LogLevel.INFO) \
+            .log_level(lark.LogLevel.CRITICAL) \
             .build()
     
-    def list_employee(self) -> {}:
-        pageToken, pageSize = '0', 100
+    def list_employee(self, page_size: int = 100) -> Set[str]:
+        pageToken, pageSize = '0', page_size
         employees: Set[str] = set() 
         while True:
             request: ListEmployeeRequest = ListEmployeeRequest.builder() \
@@ -37,9 +37,9 @@ class Lark:
                 break
         return employees
 
-    def list_bitable_employee(self, BITABLE_ID: str, TABLE_ID: str) -> Dict[str, str]:
+    def list_bitable_employee(self, BITABLE_ID: str, TABLE_ID: str, page_size: int = 100) -> Dict[str, str]:
         employees: Dict[str, str] = {}
-        pageToken, pageSize = '', 100
+        pageToken, pageSize = '', page_size
         while True:
             request: SearchAppTableRecordRequest = SearchAppTableRecordRequest.builder() \
             .app_token(BITABLE_ID) \
