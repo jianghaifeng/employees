@@ -23,7 +23,7 @@ def main():
     start = perf_counter()
     larkClient = Lark(os.getenv("APP_ID"), os.getenv("APP_SECRET"))
     ehr_page_size = _get_int_env("EHR_PAGE_SIZE", 100)
-    bitable_page_size = _get_int_env("BITABLE_PAGE_SIZE", 100)
+    bitable_page_size = _get_int_env("BITABLE_PAGE_SIZE", 500)
 
     fetch_start = perf_counter()
     with ThreadPoolExecutor(max_workers=2) as executor:
