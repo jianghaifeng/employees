@@ -1,0 +1,92 @@
+import lark_oapi as lark
+from lark_oapi.api.ehr.v1 import *
+from lark_oapi.api.bitable.v1 import *
+from dotenv import load_dotenv
+from typing import Set, Dict, List
+import json
+
+class Lark:
+    def __init__(self, APP_ID: str, APP_SECRET: str):
+        load_dotenv()
+        self.client = lark.Client.builder() \
+            .app_id(APP_ID) \
+            .app_secret(APP_SECRET) \
+            .log_level(lark.LogLevel.INFO) \
+            .build()
+    
+    def list_employee(self) -> {}:
+        pageToken, pageSize = '0', 100
+        employees: Set[str] = set() 
+        while True:
+            request: ListEmployeeRequest = ListEmployeeRequest.builder() \
+                .status(2) \
+                .user_id_type("open_id") \
+                .page_token(pageToken) \
+                .page_size(pageSize) \
+                .build()
+            response: ListEmployeeResponse = self.client.ehr.v1.employee.list(request)
+            if not response.success():
+                lark.logger.error(
+                    f"client.ehr.v1.employee.list failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}")
+                return
+            for employee in response.data.items:
+                employees.add(employee.user_id)
+            if response.data.has_more:
+                pageToken = response.data.page_token
+            else:
+                break
+        return employees
+
+    def list_bitable_employee(self, BITABLE_ID: str, TABLE_ID: str) -> Dict[str, str]:
+        employees: Dict[str, str] = {}
+        pageToken, pageSize = '', 100
+        while True:
+            request: SearchAppTableRecordRequest = SearchAppTableRecordRequest.builder() \
+            .app_token(BITABLE_ID) \
+            .table_id(TABLE_ID) \
+            .user_id_type("open_id") \
+            .page_token(pageToken) \
+            .page_size(pageSize) \
+            .request_body(SearchAppTableRecordRequestBody.builder()
+                .field_names(["姓名"])
+                .build()) \
+            .build()
+
+            response: SearchAppTableRecordResponse = self.client.bitable.v1.app_table_record.search(request)
+            if not response.success():
+                lark.logger.error(
+                    f"client.bitable.v1.app_table_record.search failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}")
+                return
+            for record in response.data.items:
+                employees[record.fields["姓名"][0]["id"]] = record.record_id
+            if response.data.has_more:
+                pageToken = response.data.page_token
+            else:
+                break
+        return employees
+
+    def batch_add_employees_to_bitable(self, BITABLE_ID: str, TABLE_ID: str, employees: list[str]):
+        batchSize = 500
+        for i in range(0, len(employees), batchSize):
+            records: List[AppTableRecord] = []
+            batchEmployees = employees[i:i+batchSize]
+            for employee in batchEmployees:
+                records.append(AppTableRecord.builder()
+                    .fields({"姓名":[{"id":employee}]})
+                    .build())
+            request: BatchCreateAppTableRecordRequest = BatchCreateAppTableRecordRequest.builder() \
+            .app_token(BITABLE_ID) \
+            .table_id(TABLE_ID) \
+            .user_id_type("open_id") \
+            .request_body(BatchCreateAppTableRecordRequestBody.builder()
+                .records(records)
+                .build()) \
+            .build()
+
+            response: BatchCreateAppTableRecordResponse = self.client.bitable.v1.app_table_record.batch_create(request)
+            if not response.success():
+                lark.logger.error(
+                    f"client.bitable.v1.app_table_record.batch_create failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}")
+                return False
+
+        return True
