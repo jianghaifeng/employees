@@ -4,6 +4,7 @@ from lark_oapi.api.bitable.v1 import *
 from dotenv import load_dotenv
 from typing import Set, Dict, List
 import json
+import time
 
 class Lark:
     def __init__(self, APP_ID: str, APP_SECRET: str):
@@ -11,7 +12,7 @@ class Lark:
         self.client = lark.Client.builder() \
             .app_id(APP_ID) \
             .app_secret(APP_SECRET) \
-            .log_level(lark.LogLevel.CRITICAL) \
+            .log_level(lark.LogLevel.ERROR) \
             .build()
     
     def list_employee(self, page_size: int = 100) -> Set[str]:
@@ -37,6 +38,28 @@ class Lark:
                 break
         return employees
 
+    def update_employee_status(self, BITABLE_ID: str, TABLE_ID: str, to_update: List[str]):
+        left_employees = []
+        timestamp = int(time.time() * 1000)
+        for record_id in to_update:
+            left_employees.append(AppTableRecord.builder()
+                .fields({"离职": timestamp})
+                .record_id(record_id)
+                .build())
+        request: BatchUpdateAppTableRecordRequest = BatchUpdateAppTableRecordRequest.builder() \
+            .app_token(BITABLE_ID) \
+            .table_id(TABLE_ID) \
+            .request_body(BatchUpdateAppTableRecordRequestBody.builder()
+                .records(left_employees)
+                .build()) \
+            .build()
+        response: BatchUpdateAppTableRecordResponse = self.client.bitable.v1.app_table_record.batch_update(request)
+
+        if not response.success():
+            lark.logger.error(
+                f"client.bitable.v1.app_table_record.batch_update failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}")
+            return
+
     def list_bitable_employee(self, BITABLE_ID: str, TABLE_ID: str, page_size: int = 100) -> Dict[str, str]:
         employees: Dict[str, str] = {}
         pageToken, pageSize = '', page_size
@@ -49,6 +72,14 @@ class Lark:
             .page_size(pageSize) \
             .request_body(SearchAppTableRecordRequestBody.builder()
                 .field_names(["姓名"])
+                .filter(FilterInfo.builder()
+                    .conjunction("and")
+                    .conditions([Condition.builder()
+                        .field_name("离职")
+                        .operator("isEmpty")
+                        .value([])
+                        .build()]) \
+                    .build()) \
                 .build()) \
             .build()
 

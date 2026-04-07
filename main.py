@@ -43,8 +43,17 @@ def main():
     logger.info(f"Found {len(bitableEmployees)} bitable employees from bitable")
 
     diff_start = perf_counter()
+    update_records = []
+    for [employee_id, record_id] in bitableEmployees.items():
+        if employee_id not in employees:
+            update_records.append(record_id)
+            
+    if len(update_records) > 0:
+        larkClient.update_employee_status(os.getenv("BITABLE_ID"), os.getenv("TABLE_ID"), update_records)
+
     newEmployees = [employee for employee in employees if employee not in bitableEmployees]
-    logger.info("Diff finished in %.2fs, new employees: %d", perf_counter() - diff_start, len(newEmployees))
+
+    logger.info("Diff finished in %.2fs, left employees: %d, new employees: %d", perf_counter() - diff_start, len(update_records), len(newEmployees))
 
     if not newEmployees:
         logger.info("No new employees to sync, total elapsed %.2fs", perf_counter() - start)
