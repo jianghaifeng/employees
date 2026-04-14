@@ -121,3 +121,43 @@ class Lark:
                 return False
 
         return True
+
+    def list_left_employees_from_bitable(self, BITABLE_ID: str, TABLE_ID: str, page_size: int = 100) -> Dict[str, str]:
+        employees: Dict[str, str] = {}
+        pageToken, pageSize = '', page_size
+        while True:
+            request: SearchAppTableRecordRequest = SearchAppTableRecordRequest.builder() \
+            .app_token(BITABLE_ID) \
+            .table_id(TABLE_ID) \
+            .user_id_type("open_id") \
+            .page_token(pageToken) \
+            .page_size(pageSize) \
+            .request_body(SearchAppTableRecordRequestBody.builder()
+                .filter(FilterInfo.builder()
+                    .conjunction("and")
+                    .conditions([Condition.builder()
+                        .field_name("离职")
+                        .operator("isNotEmpty")
+                        .value([])
+                        .build()]) \
+                    .build()) \
+                .sort([Sort.builder()
+                    .field_name("离职")
+                    .desc(True)
+                    .build()
+                    ]) \
+                .build()) \
+            .build()
+
+            response: SearchAppTableRecordResponse = self.client.bitable.v1.app_table_record.search(request)
+            if not response.success():
+                lark.logger.error(
+                    f"client.bitable.v1.app_table_record.search failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}")
+                return
+            for record in response.data.items:
+                print("姓名：", record.fields["姓名"][0]["name"], "工号：", record.fields["姓名.工号"][0]["text"], "部门：", record.fields["姓名.部门"][0])
+
+            if response.data.has_more:
+                pageToken = response.data.page_token
+            else:
+                break
