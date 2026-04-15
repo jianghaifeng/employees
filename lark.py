@@ -96,7 +96,7 @@ class Lark:
                 break
         return employees
 
-    def batch_add_employees_to_bitable(self, BITABLE_ID: str, TABLE_ID: str, employees: list[str]):
+    def batch_add_employees_to_bitable(self, BITABLE_ID: str, TABLE_ID: str, employees: List[str]):
         batchSize = 500
         for i in range(0, len(employees), batchSize):
             records: List[AppTableRecord] = []
